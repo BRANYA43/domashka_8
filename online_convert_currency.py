@@ -8,32 +8,9 @@ from requests import Response
 from tabulate import tabulate
 
 
-def get_file_name(currency_from: str, currency_to: str, amount: float) -> str:
-    return f'{datetime.now().strftime("%Y-%m-%d")}-{currency_from}-{currency_to}-{amount}.txt'
-
-
-def save_file(file_name: str, table: list):
-    with open(file_name, 'w', newline='') as f:
-        writer = csv.writer(f, delimiter='\t')
-        for row in table:
-            writer.writerow(row)
-
-
 def get_response_json( date: str, currency_from: str, currency_to: str, amount: float) -> Response:
     params = {'date': date, 'from': currency_from, 'to': currency_to, 'amount': amount}
     return requests.get('https://api.exchangerate.host/convert', params=params).json()
-
-
-def get_create_row_tab(date: str, currency_from: str, currency_to: str, amount: float) -> list:
-    response = get_response_json(date, currency_from, currency_to, amount)
-    return [date, currency_from, currency_to, amount, response['info']['rate'], response['result']]
-
-
-def get_create_tab(dates: list, currency_from: str, currency_to: str, amount: float) -> list:
-    ret = [['date', 'from', 'to', 'amount', 'rate', 'result']]
-    for date in dates:
-        ret.append(get_create_row_tab(date, currency_from, currency_to, amount))
-    return ret
 
 
 def valid_date(date: str) -> bool:
@@ -68,6 +45,29 @@ def create_dates_list(date: str) -> list:
     return ret
 
 
+def get_create_row_tab(date: str, currency_from: str, currency_to: str, amount: float) -> list:
+    response = get_response_json(date, currency_from, currency_to, amount)
+    return [date, currency_from, currency_to, amount, response['info']['rate'], response['result']]
+
+
+def get_create_tab(dates: list, currency_from: str, currency_to: str, amount: float) -> list:
+    ret = [['date', 'from', 'to', 'amount', 'rate', 'result']]
+    for date in dates:
+        ret.append(get_create_row_tab(date, currency_from, currency_to, amount))
+    return ret
+
+
+def get_file_name(currency_from: str, currency_to: str, amount: float) -> str:
+    return f'{datetime.now().strftime("%Y-%m-%d")}-{currency_from}-{currency_to}-{amount}.txt'
+
+
+def save_file(file_name: str, table: list):
+    with open(file_name, 'w', newline='') as f:
+        writer = csv.writer(f, delimiter='\t')
+        for row in table:
+            writer.writerow(row)
+
+
 def get_args():
     parser = ArgumentParser()
     parser.add_argument('-from', '--currency_from', default='USD',
@@ -86,6 +86,8 @@ def get_args():
 def main():
     args = get_args()
     dates = create_dates_list(args.start_date)
+    args.currency_from = args.currency_from.upper()
+    args.currency_to = args.currency_to.upper()
     tab = get_create_tab(dates, args.currency_from, args.currency_to, args.amount)
 
     if args.save_file:

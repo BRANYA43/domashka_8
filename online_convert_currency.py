@@ -1,11 +1,22 @@
-from pprint import pp
 from datetime import datetime, timedelta
 from argparse import ArgumentParser
+import csv
 
 
 import requests
 from requests import Response
 from tabulate import tabulate
+
+
+def get_file_name(currency_from: str, currency_to: str, amount: float) -> str:
+    return f'{datetime.now().strftime("%Y-%m-%d")}-{currency_from}-{currency_to}-{amount}.txt'
+
+
+def save_file(file_name: str, table: list):
+    with open(file_name, 'w', newline='') as f:
+        writer = csv.writer(f, delimiter='\t')
+        for row in table:
+            writer.writerow(row)
 
 
 def get_response_json( date: str, currency_from: str, currency_to: str, amount: float) -> Response:
@@ -25,38 +36,36 @@ def get_create_tab(dates: list, currency_from: str, currency_to: str, amount: fl
     return ret
 
 
-def validate(date: str) -> bool:
+def valid_date(date: str) -> bool:
     try:
         datetime.strptime(date, '%Y-%m-%d')
         return True
     except ValueError:
-        print('Неправилильний формат дати, має бути YYYY-MM-DD')
+        print(f'Неправилильний формат дати, має бути YYYY-MM-DD')
         return False
 
 
-def is_date(date_now: datetime, date_input: datetime) -> bool:
+def comparison_dates(date_now: datetime, date_input: datetime) -> bool:
     if date_input < date_now:
         return True
     else:
         return False
 
 
-def iter_date(date: str) -> list:
+def create_dates_list(date: str) -> list:
     ret = []
     date_now = datetime.now()
-
-    if validate(date):
+    if valid_date(date):
         date_input = datetime(*[int(elem) for elem in date.split('-')])
-        print(date_input)
 
-        if is_date(date_now, date_input):
+        if comparison_dates(date_now, date_input):
             while date_input <= date_now:
                 ret.append(date_input.strftime("%Y-%m-%d"))
                 date_input += timedelta(days=1)
+        else:
+            ret.append(date_now.strftime("%Y-%m-%d"))
 
-            return ret
-
-    return [date_now.strftime("%Y-%m-%d")]
+    return ret
 
 
 def get_args():
@@ -68,18 +77,23 @@ def get_args():
     parser.add_argument('--amount', type=float, default=100.00,
                         help='Кількість грошей якую треба конвертувати.')
     parser.add_argument('--start_date', default=datetime.now().strftime('%Y-%m-%d'),
-                        help='')
+                        help='Дата у форматі YYYY-MM-DD')
+
+    parser.add_argument('--save_file', action='store_true')
     return parser.parse_args()
 
 
-args = get_args()
-dates = iter_date(args.start_date)
-currency_from = args.currency_from
-currency_to = args.currency_to
-amount = args.amount
+def main():
+    args = get_args()
+    dates = create_dates_list(args.start_date)
+    tab = get_create_tab(dates, args.currency_from, args.currency_to, args.amount)
 
-print()
+    if args.save_file:
+        file_name = get_file_name(args.currency_from, args.curryncy_to, args.amount)
+        save_file(file_name, tab)
+    else:
+        print(tabulate(tab))
 
-tab = get_create_tab(dates, currency_from, currency_to, amount)
-print(tabulate(tab))
 
+if __name__ == '__main__':
+    main()

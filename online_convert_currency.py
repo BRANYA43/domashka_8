@@ -7,11 +7,12 @@ import requests
 from tabulate import tabulate
 
 
-def check_correct_currency(currency: str, currencies: dict):
+def check_correct_currency(currency: str, currencies: dict, default_currency: str):
     currency = currency
     for curr in currencies['symbols']:
         if currency == curr:
             return currency
+    return default_currency
 
 
 def get_response_json(url: str, parameters={}) -> json:
@@ -113,8 +114,8 @@ def main():
         save_file_json('symbols.json', currencies)
 
     args = get_args()
-    args.currency_from = check_correct_currency(args.currency_from, currencies)
-    args.currency_to = check_correct_currency(args.currency_to, currencies)
+    args.currency_from = check_correct_currency(args.currency_from, currencies, 'USD')
+    args.currency_to = check_correct_currency(args.currency_to, currencies, 'UAH')
     dates = create_dates_list(args.start_date)
 
     tab = get_create_tab(url_1, dates, args.currency_from, args.currency_to, args.amount)

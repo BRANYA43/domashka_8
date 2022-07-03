@@ -1,16 +1,21 @@
 from datetime import datetime, timedelta
 from argparse import ArgumentParser
 import csv
-
+import json
 
 import requests
-from requests import Response
 from tabulate import tabulate
 
 
-def get_response_json( date: str, currency_from: str, currency_to: str, amount: float) -> Response:
-    params = {'date': date, 'from': currency_from, 'to': currency_to, 'amount': amount}
-    return requests.get('https://api.exchangerate.host/convert', params=params).json()
+def check_correct_currency(currency: str, currencies: dict):
+    currency = currency
+    for curr in currencies['symbols']:
+        if currency == curr:
+            return currency
+
+
+def get_response_json(url: str, parameters={}) -> json:
+    return requests.get(url, params=parameters).json()
 
 
 def valid_date(date: str) -> bool:
@@ -45,15 +50,16 @@ def create_dates_list(date: str) -> list:
     return ret
 
 
-def get_create_row_tab(date: str, currency_from: str, currency_to: str, amount: float) -> list:
-    response = get_response_json(date, currency_from, currency_to, amount)
+def get_create_row_tab(url: str, date: str, currency_from: str, currency_to: str, amount: float) -> list:
+    parameters: dict[str, str | float] = {'date': date, 'from': currency_from, 'to': currency_to, 'amount': amount}
+    response = get_response_json(url, parameters)
     return [date, currency_from, currency_to, amount, response['info']['rate'], response['result']]
 
 
-def get_create_tab(dates: list, currency_from: str, currency_to: str, amount: float) -> list:
+def get_create_tab(url: str, dates: list, currency_from: str, currency_to: str, amount: float) -> list:
     ret = [['date', 'from', 'to', 'amount', 'rate', 'result']]
     for date in dates:
-        ret.append(get_create_row_tab(date, currency_from, currency_to, amount))
+        ret.append(get_create_row_tab(url, date, currency_from, currency_to, amount))
     return ret
 
 
@@ -61,11 +67,21 @@ def get_file_name(currency_from: str, currency_to: str, amount: float) -> str:
     return f'{datetime.now().strftime("%Y-%m-%d")}-{currency_from}-{currency_to}-{amount}.txt'
 
 
-def save_file(file_name: str, table: list):
+def save_file_cvs(file_name: str, table: list):
     with open(file_name, 'w', newline='') as f:
         writer = csv.writer(f, delimiter='\t')
         for row in table:
             writer.writerow(row)
+
+
+def save_file_json(file_name: str, some_dict: dict):
+    with open(file_name, 'w') as f:
+        json.dump(some_dict, f)
+
+
+def load_file_json(file_name: str) -> dict:
+    with open(file_name, 'r') as f:
+        return json.load(f)
 
 
 def get_args():
@@ -84,15 +100,28 @@ def get_args():
 
 
 def main():
+    url_1 = 'https://api.exchangerate.host/convert'
+    url_2 = 'https://api.exchangerate.host/symbols'
+
+    try:
+        currencies = load_file_json('symbols.json')
+    except FileNotFoundError:
+        response_url_2 = get_response_json(url_2, parameters={})
+        currencies = {'symbols': []}
+        for currency in response_url_2['symbols']:
+            currencies['symbols'].append(currency)
+        save_file_json('symbols.json', currencies)
+
     args = get_args()
+    args.currency_from = check_correct_currency(args.currency_from, currencies)
+    args.currency_to = check_correct_currency(args.currency_to, currencies)
     dates = create_dates_list(args.start_date)
-    args.currency_from = args.currency_from.upper()
-    args.currency_to = args.currency_to.upper()
-    tab = get_create_tab(dates, args.currency_from, args.currency_to, args.amount)
+
+    tab = get_create_tab(url_1, dates, args.currency_from, args.currency_to, args.amount)
 
     if args.save_file:
         file_name = get_file_name(args.currency_from, args.curryncy_to, args.amount)
-        save_file(file_name, tab)
+        save_file_cvs(file_name, tab)
     else:
         print(tabulate(tab))
 

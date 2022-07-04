@@ -12,7 +12,7 @@ def load_symbols_json() -> dict:
     try:
         currencies = load_file_json('symbols.json')
     except FileNotFoundError:
-        response_url_2 = get_response_json(url, parameters={})
+        response_url_2 = get_response_json(url)
         currencies = {'symbols': []}
         for currency in response_url_2['symbols']:
             currencies['symbols'].append(currency)

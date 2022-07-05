@@ -28,7 +28,7 @@ def check_correct_currency(currency: str, currencies: dict, default_currency: st
     return default_currency
 
 
-def get_response_json(url: str, parameters={}) -> json:
+def get_response_json(url: str, parameters=None | dict) -> json:
     return requests.get(url, params=parameters).json()
 
 
